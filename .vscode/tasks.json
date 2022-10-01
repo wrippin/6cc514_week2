@@ -1,0 +1,29 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+   "version": "2.0.0",
+   "tasks": [
+    {
+        "label": "Build Example",
+        "type": "shell",
+        "command": "make",
+        "problemMatcher": [],
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+    },
+    {
+        "label": "Run Example under QEMU",
+        "type": "shell",
+        "command": "make qemu",
+        "problemMatcher": []
+    },
+    {
+        "label": "Clean non-source files",
+        "type": "shell",
+        "command": "make clean",
+        "problemMatcher": []
+    }
+]
+}
