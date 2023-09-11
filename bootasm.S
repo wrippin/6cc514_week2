@@ -44,49 +44,69 @@ cons_writeline:
     ret    
 
 real_start:
-    cli                         # BIOS enabled interrupts; disable
+    cli                              # BIOS enabled interrupts; disable
 
     # Zero data segment registers DS, ES, and SS.
-    xorw    %ax, %ax            # Set %ax to zero
-    movw    %ax, %ds            # -> Data Segment
-    movw    %ax, %es            # -> Extra Segment
-    movw    %ax, %ss            # -> Stack Segment
-    movw    $0, %sp             # Set the stack to the top of the segment
+    xorw    %ax, %ax                 # Set %ax to zero
+    movw    %ax, %ds                 # -> Data Segment
+    movw    %ax, %es                 # -> Extra Segment
+    movw    %ax, %ss                 # -> Stack Segment
+    movw    $0, %sp                  # Set the stack to the top of the segment
 
-    movb    %dl, (boot_device) # Boot device number is passed in DL from BIOS. Save it hear since DL might get trashed
+    movb    %dl, (boot_device) # Boot device number is passed in DL from BIOS. Save it here since DL might get trashed
 
-    movw    $boot_message, %si  # Display our boot message
+    movw    $boot_message, %si       # Display our boot message
     call    cons_writeline
 
-	movb	$2, %ah				# BIOS function 13h, sub-function 2 is read sectors
-	movb	$7, %al				# Number of sectors to read = 7
-	movw	$0x9000, %bx		# The 7 sectors will be loaded into memory at ES:BX (0000:9000h)
-	movb	$0, %ch				# Use cylinder 0
-	movb 	$0, %dh 			# Use head 0
-	movb	(boot_device), %dl  # Retrieve the ID of our boot device			
-	movb 	$2, %cl				# Start reading at sector 2 (i.e. one after the boot sector)
-	int 	$0x13
-	cmpb	$7, %al				# AL returns the number of sectors read.  If this is not 7, report an error
-	jne		read_failed
+    movw    $disk_address_packet, %si # Move address of the disk address packet into SI
+    movw    $7, 2(%si)                # Set the number of blocks to read to be 7
+    movw    $0x9000, 4(%si)           # Set the adddress to read into to be 0x9000
+    movw    $1, 8(%si)                # Set the first block to read to be block 1
+    movb    $0x42, %ah                # 0x42 is the int 13h BIOS function to read the disk using LBA addressing
+	movb	(boot_device), %dl        # Retrieve the ID of our boot device and put in DL	
+    int     $0x13                     # Read the disk
+    jc      read_failed	              # The carry flag will be set if an error occured
 
- 	movb	(boot_device), %dl	# Pass boot device ID to second stage
-    movw    $0x9000, %ax        # Jump to stage 2
+    movb    (0x9000), %al             # Check that what we loaded is not empty
+    cmpb    $0, %al
+    je      read_failed
+
+	movb	(boot_device), %dl	      # Pass boot device ID to second stage
+    movw    $0x9000, %ax              # Jump to stage 2
     jmp     *%ax
 
-read_failed:	                # Display error messages
+read_failed:	                      # Display error messages
 	movw 	$read_failed_msg, %si
     call    cons_writeline
 	
 	mov 	$cannot_continue, %si	
     call    cons_writeline
 	
-endless_loop:                   # Loop forever more
+endless_loop:                         # Loop forever more
     jmp     endless_loop    
 
 # Program data
 
 boot_device:
     .byte   0
+
+# Format of disk address packet
+#
+# Offset	Size	Description
+#  0          1     size of packet (16 bytes)
+#  1          1     always 0
+#  2          2     number of sectors to transfer (max 127 on some BIOSes)
+#  4          4     transfer buffer (first 2 bytes is 16-bit offset, next 2 bytes is 16 bit segment)
+#  8          4     lower 32-bits of 48-bit starting LBA (starting from 0)
+#  12         4     upper 16-bits of 48-bit starting LBA (will always be 0 for us)
+
+disk_address_packet:
+    .byte   0x10
+    .byte   0
+    .word   0
+    .long   0
+    .long   0
+    .long   0
 
 boot_message:     
     .string "Boot Loader V1.0"             
