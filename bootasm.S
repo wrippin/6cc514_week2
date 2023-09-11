@@ -67,10 +67,6 @@ real_start:
     int     $0x13                     # Read the disk
     jc      read_failed	              # The carry flag will be set if an error occured
 
-    movb    (0x9000), %al             # Check that what we loaded is not empty
-    cmpb    $0, %al
-    je      read_failed
-
 	movb	(boot_device), %dl	      # Pass boot device ID to second stage
     movw    $0x9000, %ax              # Jump to stage 2
     jmp     *%ax
